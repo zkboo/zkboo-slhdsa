@@ -11,7 +11,7 @@
 use crate::{
     address::{ADRS_TREE, ADRS_WOTS_HASH, Adrs},
     hashes::{Node, h},
-    params::N,
+    params::{N, SlhDsaParams},
     util::{bit_of_u32, cond_swap_nodes, mask_from_bit, node_from_slice},
     wots::{LEN, wots_pk_from_sig, wots_pk_gen},
 };
@@ -23,11 +23,12 @@ use zkboo::backend::{Backend, WordRef};
 ///
 /// `adrs` must have the layer and tree addresses set; type and remaining fields are managed here.
 pub fn xmss_root<B: Backend>(
+    params: &SlhDsaParams,
     sk_seed: &Node<B>,
     pk_seed: &Node<B>,
     adrs: &Adrs<B>,
-    h_prime: usize,
 ) -> Node<B> {
+    let h_prime = params.h_prime;
     // Stack of (node, height, index) with strictly decreasing heights; each new leaf is merged
     // upward while the stack top has its own height.
     let mut stack: Vec<(Node<B>, usize, usize)> = Vec::with_capacity(h_prime + 1);
@@ -35,7 +36,7 @@ pub fn xmss_root<B: Backend>(
         let mut leaf_adrs = adrs.clone();
         leaf_adrs.set_type_and_clear(ADRS_WOTS_HASH);
         leaf_adrs.set_key_pair_const(i as u32);
-        let mut node = wots_pk_gen(sk_seed, pk_seed, &leaf_adrs);
+        let mut node = wots_pk_gen(params, sk_seed, pk_seed, &leaf_adrs);
         let mut height = 0usize;
         let mut index = i;
         while let Some((_, top_height, _)) = stack.last()
@@ -48,7 +49,7 @@ pub fn xmss_root<B: Backend>(
             tree_adrs.set_type_and_clear(ADRS_TREE);
             tree_adrs.set_tree_height_const(height as u32);
             tree_adrs.set_tree_index_const(index as u32);
-            node = h(&tree_adrs, pk_seed, &left, &node);
+            node = h(params, &tree_adrs, pk_seed, &left, &node);
         }
         stack.push((node, height, index));
     }
@@ -64,13 +65,14 @@ pub fn xmss_root<B: Backend>(
 /// `sig_xmss` is the flat XMSS signature: 35 WOTS+ nodes followed by `h_prime` authentication
 /// nodes. `adrs` must have the layer and tree addresses set.
 pub fn xmss_pk_from_sig<B: Backend>(
+    params: &SlhDsaParams,
     idx_leaf: &WordRef<B, u32>,
     sig_xmss: &[WordRef<B, u8>],
     msg: &Node<B>,
     pk_seed: &Node<B>,
     adrs: &Adrs<B>,
-    h_prime: usize,
 ) -> Node<B> {
+    let h_prime = params.h_prime;
     assert_eq!(
         sig_xmss.len(),
         (LEN + h_prime) * N,
@@ -79,7 +81,7 @@ pub fn xmss_pk_from_sig<B: Backend>(
     let mut wots_adrs = adrs.clone();
     wots_adrs.set_type_and_clear(ADRS_WOTS_HASH);
     wots_adrs.set_key_pair_wire(idx_leaf);
-    let mut node = wots_pk_from_sig(&sig_xmss[..LEN * N], msg, pk_seed, &wots_adrs);
+    let mut node = wots_pk_from_sig(params, &sig_xmss[..LEN * N], msg, pk_seed, &wots_adrs);
     let mut tree_adrs = adrs.clone();
     tree_adrs.set_type_and_clear(ADRS_TREE);
     for k in 0..h_prime {
@@ -89,7 +91,7 @@ pub fn xmss_pk_from_sig<B: Backend>(
         // Bit k of the leaf index picks the side: 0 hashes node ‖ auth, 1 hashes auth ‖ node.
         let mask = mask_from_bit(bit_of_u32(idx_leaf, k));
         let (l, r) = cond_swap_nodes(&mask, &node, &auth);
-        node = h(&tree_adrs, pk_seed, &l, &r);
+        node = h(params, &tree_adrs, pk_seed, &l, &r);
     }
     return node;
 }
