@@ -26,7 +26,7 @@ pub fn slh_keygen_root<B: Backend>(
     let pk_seed: Node<B> = array::from_fn(|i| allocator.alloc(pk_seed[i]));
     let mut adrs = Adrs::new(allocator);
     adrs.set_layer((params.d - 1) as u32);
-    return xmss_root(&sk_seed, &pk_seed, &adrs, params.h_prime);
+    return xmss_root(params, &sk_seed, &pk_seed, &adrs);
 }
 
 /// Recomputes the SLH-DSA public-key root `PK.root` from a message and a signature (FIPS 205,
@@ -53,7 +53,7 @@ pub fn slh_verify_root<B: Backend>(
     let sig_ht = &sig[N + fors_len..];
     // Compute and parse the message digest: k a-bit FORS indices, then the hypertree index
     // (h − h' bits) and the leaf index (h' bits) as masked big-endian integers.
-    let digest = h_msg(allocator.clone(), &r, &pk_seed, &pk_root, msg, params.m);
+    let digest = h_msg(params, allocator.clone(), &r, &pk_seed, &pk_root, msg);
     let md_len = (params.k * params.a).div_ceil(8);
     let tree_bits = params.h - params.h_prime;
     let tree_len = tree_bits.div_ceil(8);
@@ -86,7 +86,7 @@ pub fn slh_verify_root<B: Backend>(
     fors_adrs.set_tree_addr_wire(&idx_tree);
     fors_adrs.set_type_and_clear(ADRS_FORS_TREE);
     fors_adrs.set_key_pair_wire(&idx_leaf);
-    let mut node = fors_pk_from_sig(sig_fors, &indices, &pk_seed, &fors_adrs, params.k, params.a);
+    let mut node = fors_pk_from_sig(params, sig_fors, &indices, &pk_seed, &fors_adrs);
     // Walk the hypertree: layer j sits in the tree indexed by the high bits of idx_tree, at the
     // leaf given by the next h' bits (layer 0 uses idx_leaf from the digest directly).
     let xmss_len = (LEN + params.h_prime) * N;
@@ -102,12 +102,12 @@ pub fn slh_verify_root<B: Backend>(
         layer_adrs.set_layer(j as u32);
         layer_adrs.set_tree_addr_wire(&layer_tree);
         node = xmss_pk_from_sig(
+            params,
             &layer_leaf,
             &sig_ht[j * xmss_len..(j + 1) * xmss_len],
             &node,
             &pk_seed,
             &layer_adrs,
-            params.h_prime,
         );
     }
     return node;
