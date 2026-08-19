@@ -8,19 +8,18 @@
 //! key-generation circuit builds a full 512-leaf XMSS tree (~290k in-circuit SHAKE256 calls), so
 //! its test is `#[ignore]`d for regular runs; run it explicitly in release mode.
 
+mod common;
+
+use common::{KeygenCircuit, VerifyCircuit};
 use rand::{SeedableRng, rngs::StdRng};
 use slh_dsa::{ParameterSet, Shake128f, Shake128s, SigningKey, signature::Signer};
 use zkboo::{
-    backend::{Backend, Frontend},
-    circuit::Circuit,
     crypto::{HashPRG, Keccak256Hasher},
     executor::{OwnedFlexibleWordPool, exec},
     prover::{prove, views::OwnedFlexibleWordTriplePool},
     verifier::{replay::OwnedFlexibleWordPairPool, verify},
 };
-use zkboo_slhdsa::{
-    N, SLH_DSA_SHAKE_128F, SLH_DSA_SHAKE_128S, SlhDsaParams, slh_keygen_root, slh_verify_root,
-};
+use zkboo_slhdsa::{N, SLH_DSA_SHAKE_128F, SLH_DSA_SHAKE_128S, SlhDsaParams};
 
 type WP = OwnedFlexibleWordPool<usize>;
 
@@ -49,45 +48,6 @@ fn reference<P: ParameterSet>() -> Reference {
         pk_root: sk_bytes[3 * N..4 * N].try_into().unwrap(),
         sig: sk.sign(MSG).to_vec(),
     };
-}
-
-struct KeygenCircuit {
-    sk_seed: [u8; N],
-    pk_seed: [u8; N],
-    params: &'static SlhDsaParams,
-}
-
-impl Circuit for KeygenCircuit {
-    fn exec<B: Backend>(&self, frontend: &Frontend<B>) {
-        let sk_seed = core::array::from_fn(|i| frontend.input(self.sk_seed[i]));
-        let root = slh_keygen_root(frontend.allocator(), sk_seed, &self.pk_seed, self.params);
-        root.into_iter().for_each(|w| frontend.output(w));
-    }
-}
-
-struct VerifyCircuit {
-    msg: Vec<u8>,
-    sig: Vec<u8>,
-    pk_seed: [u8; N],
-    pk_root: [u8; N],
-    params: &'static SlhDsaParams,
-}
-
-impl Circuit for VerifyCircuit {
-    fn exec<B: Backend>(&self, frontend: &Frontend<B>) {
-        let allocator = frontend.allocator();
-        let msg = self.msg.iter().map(|&b| allocator.alloc(b)).collect();
-        let sig = self.sig.iter().map(|&b| frontend.input(b)).collect();
-        let root = slh_verify_root(
-            allocator,
-            msg,
-            sig,
-            &self.pk_seed,
-            &self.pk_root,
-            self.params,
-        );
-        root.into_iter().for_each(|w| frontend.output(w));
-    }
 }
 
 fn check_keygen<P: ParameterSet>(params: &'static SlhDsaParams) {

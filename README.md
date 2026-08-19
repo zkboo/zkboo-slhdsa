@@ -33,8 +33,8 @@ Approximate circuit sizes, in in-circuit SHAKE256 calls: verification ~4.3k (128
 - `src/wots.rs`, `src/xmss.rs`, `src/fors.rs` — the three component schemes.
 - `src/slh.rs` — the top-level key-generation and verification circuits.
 
-Validated end-to-end against the reference [`slh-dsa`](https://crates.io/crates/slh-dsa) (RustCrypto) implementation: circuit outputs match reference public keys for both parameter sets, tampered signatures and wrong messages fail to reproduce the root, and a full ZKBoo prove/verify round-trip passes over the 128s verification circuit.
-Heavy tests (`test_keygen_128s`, `test_verify_128s_zkboo_proof`) are `#[ignore]`d; run them explicitly in release mode.
+Validated end-to-end against the reference [`slh-dsa`](https://crates.io/crates/slh-dsa) (RustCrypto) implementation and against the official NIST ACVP FIPS 205 gen/val vectors (`tests/vectors/`, see its README for provenance): all keyGen cases and all sigVer cases of the internal and pure-external interfaces pass, including adversarial cases (modified `R`/`SIG_FORS`/`SIG_HT`, modified messages, wrong-length signatures). A full ZKBoo prove/verify round-trip passes over the 128s verification circuit.
+Heavy tests (the 128s key-generation cases and the proof round-trip) are `#[ignore]`d; run them explicitly in release mode.
 
 ## 🚧 Warning 🚧
 
