@@ -11,7 +11,7 @@
 use crate::{
     address::{ADRS_WOTS_PK, ADRS_WOTS_PRF, Adrs},
     hashes::{Node, f, prf, t_l},
-    params::{N, WOTS_LEN},
+    params::{N, SlhDsaParams, WOTS_LEN},
     util::{mask_from_bit, node_from_slice, select_node},
 };
 use alloc::vec::Vec;
@@ -29,7 +29,12 @@ const LEN1: usize = 32;
 /// Computes a WOTS+ public key from the secret seed (FIPS 205, Algorithm 6).
 ///
 /// `adrs` must have type `WOTS_HASH` with layer, tree, and key-pair addresses set.
-pub fn wots_pk_gen<B: Backend>(sk_seed: &Node<B>, pk_seed: &Node<B>, adrs: &Adrs<B>) -> Node<B> {
+pub fn wots_pk_gen<B: Backend>(
+    params: &SlhDsaParams,
+    sk_seed: &Node<B>,
+    pk_seed: &Node<B>,
+    adrs: &Adrs<B>,
+) -> Node<B> {
     let mut sk_adrs = adrs.clone();
     sk_adrs.set_type_and_clear(ADRS_WOTS_PRF);
     sk_adrs.copy_key_pair_from(adrs);
@@ -37,18 +42,18 @@ pub fn wots_pk_gen<B: Backend>(sk_seed: &Node<B>, pk_seed: &Node<B>, adrs: &Adrs
     let mut tmp: Vec<WordRef<B, u8>> = Vec::with_capacity(LEN * N);
     for i in 0..LEN {
         sk_adrs.set_chain_const(i as u32);
-        let mut v = prf(&sk_adrs, pk_seed, sk_seed);
+        let mut v = prf(params, &sk_adrs, pk_seed, sk_seed);
         chain_adrs.set_chain_const(i as u32);
         for j in 0..W - 1 {
             chain_adrs.set_hash_const(j as u32);
-            v = f(&chain_adrs, pk_seed, &v);
+            v = f(params, &chain_adrs, pk_seed, &v);
         }
         tmp.extend(v);
     }
     let mut pk_adrs = adrs.clone();
     pk_adrs.set_type_and_clear(ADRS_WOTS_PK);
     pk_adrs.copy_key_pair_from(adrs);
-    return t_l(&pk_adrs, pk_seed, tmp);
+    return t_l(params, &pk_adrs, pk_seed, tmp);
 }
 
 /// Computes the `len` = 35 message digits of an `n`-byte value: its 32 nibbles (big-endian
@@ -82,6 +87,7 @@ fn wots_digits<B: Backend>(adrs: &Adrs<B>, msg: &Node<B>) -> Vec<WordRef<B, u8>>
 /// `sig` is the flat 35-node signature; `msg` is the signed value (a secret wire node);
 /// `adrs` must have type `WOTS_HASH` with layer, tree, and key-pair addresses set.
 pub fn wots_pk_from_sig<B: Backend>(
+    params: &SlhDsaParams,
     sig: &[WordRef<B, u8>],
     msg: &Node<B>,
     pk_seed: &Node<B>,
@@ -96,7 +102,7 @@ pub fn wots_pk_from_sig<B: Backend>(
         let mut v = node_from_slice(&sig[i * N..(i + 1) * N]);
         for pos in 0..W - 1 {
             chain_adrs.set_hash_const(pos as u32);
-            let fv = f(&chain_adrs, pk_seed, &v);
+            let fv = f(params, &chain_adrs, pk_seed, &v);
             // Keep v while digit > pos (the chain start has not been reached yet): the sum
             // digit + 15 − pos exceeds 15 exactly in that case, making bit 4 its indicator.
             let keep_bit = (digits[i].clone() + (W - 1 - pos) as u8) >> 4;
@@ -107,5 +113,5 @@ pub fn wots_pk_from_sig<B: Backend>(
     let mut pk_adrs = adrs.clone();
     pk_adrs.set_type_and_clear(ADRS_WOTS_PK);
     pk_adrs.copy_key_pair_from(adrs);
-    return t_l(&pk_adrs, pk_seed, tmp);
+    return t_l(params, &pk_adrs, pk_seed, tmp);
 }

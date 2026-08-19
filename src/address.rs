@@ -61,6 +61,18 @@ impl<B: Backend> Adrs<B> {
         return &self.bytes;
     }
 
+    /// Returns the compressed 22-byte address `ADRSc` used by the SHA2 instantiations
+    /// (FIPS 205, §11.2): one layer byte, eight tree-address bytes, one type byte, and the
+    /// three type-dependent words.
+    pub fn compressed_bytes(&self) -> [WordRef<B, u8>; 22] {
+        let mut compressed = alloc::vec::Vec::with_capacity(22);
+        compressed.push(self.bytes[3].clone());
+        compressed.extend(self.bytes[8..16].iter().cloned());
+        compressed.push(self.bytes[19].clone());
+        compressed.extend(self.bytes[20..32].iter().cloned());
+        return compressed.try_into().ok().expect("22 compressed bytes");
+    }
+
     /// Overwrites the 4 bytes at `offset` with a big-endian u32 constant.
     fn set_u32_const(&mut self, offset: usize, value: u32) {
         for (i, byte) in value.to_be_bytes().into_iter().enumerate() {

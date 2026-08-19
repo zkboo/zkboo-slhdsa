@@ -9,7 +9,7 @@
 use crate::{
     address::{ADRS_FORS_ROOTS, Adrs},
     hashes::{Node, f, h, t_l},
-    params::N,
+    params::{N, SlhDsaParams},
     util::{bit_of_u32, cond_swap_nodes, mask_from_bit, node_from_slice},
 };
 use alloc::vec::Vec;
@@ -22,13 +22,13 @@ use zkboo::backend::{Backend, WordRef};
 /// authentication nodes. `adrs` must have type `FORS_TREE` with layer, tree, and key-pair
 /// addresses set.
 pub fn fors_pk_from_sig<B: Backend>(
+    params: &SlhDsaParams,
     sig_fors: &[WordRef<B, u8>],
     indices: &[WordRef<B, u32>],
     pk_seed: &Node<B>,
     adrs: &Adrs<B>,
-    k: usize,
-    a: usize,
 ) -> Node<B> {
+    let (k, a) = (params.k, params.a);
     assert_eq!(
         sig_fors.len(),
         k * (a + 1) * N,
@@ -44,7 +44,7 @@ pub fn fors_pk_from_sig<B: Backend>(
         let leaf_idx = indices[i].clone() ^ ((i as u32) << a);
         tree_adrs.set_tree_height_const(0);
         tree_adrs.set_tree_index_wire(&leaf_idx);
-        let mut node = f(&tree_adrs, pk_seed, &sk);
+        let mut node = f(params, &tree_adrs, pk_seed, &sk);
         for j in 0..a {
             tree_adrs.set_tree_height_const((j + 1) as u32);
             tree_adrs.set_tree_index_wire(&(leaf_idx.clone() >> (j + 1)));
@@ -52,12 +52,12 @@ pub fn fors_pk_from_sig<B: Backend>(
             // Bit j of the tree index picks the side: 0 hashes node ‖ auth, 1 hashes auth ‖ node.
             let mask = mask_from_bit(bit_of_u32(&indices[i], j));
             let (l, r) = cond_swap_nodes(&mask, &node, &auth);
-            node = h(&tree_adrs, pk_seed, &l, &r);
+            node = h(params, &tree_adrs, pk_seed, &l, &r);
         }
         roots.extend(node);
     }
     let mut roots_adrs = adrs.clone();
     roots_adrs.set_type_and_clear(ADRS_FORS_ROOTS);
     roots_adrs.copy_key_pair_from(adrs);
-    return t_l(&roots_adrs, pk_seed, roots);
+    return t_l(params, &roots_adrs, pk_seed, roots);
 }
