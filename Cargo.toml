@@ -16,3 +16,4 @@ slh-dsa = "0.1.0"
 # slh-dsa 0.1.0 does not compile against later `signature` prereleases, so pin the exact one.
 signature = "=2.3.0-pre.4"
 rand = "0.8"
+serde_json = "1"
