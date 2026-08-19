@@ -22,6 +22,15 @@
 #![no_std]
 extern crate alloc;
 
+pub mod address;
+pub mod fors;
+pub mod hashes;
 pub mod params;
+pub mod slh;
+pub mod util;
+pub mod wots;
+pub mod xmss;
 
+pub use hashes::Node;
 pub use params::{N, SLH_DSA_SHAKE_128F, SLH_DSA_SHAKE_128S, SlhDsaParams};
+pub use slh::{slh_keygen_root, slh_verify_root};
