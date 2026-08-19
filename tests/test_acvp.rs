@@ -3,7 +3,7 @@
 //! Validates the circuits against the official NIST ACVP gen/val test vectors for FIPS 205
 //! (see `tests/vectors/README.md` for provenance).
 //!
-//! Key generation runs every keyGen case, checking the recomputed `PK.root` against the vector.
+//! Key generation runs every keyGen case (SHAKE and SHA2 instantiations alike), checking the recomputed `PK.root` against the vector.
 //! Verification runs every sigVer case of the internal and pure-external interfaces: valid cases
 //! must reproduce `PK.root` and invalid ones must not, with wrong-length signatures rejected
 //! before the circuit is built. The 128s key-generation cases each build a full 512-leaf XMSS
@@ -14,7 +14,9 @@ mod common;
 use common::{KeygenCircuit, VerifyCircuit};
 use serde_json::Value;
 use zkboo::executor::{OwnedFlexibleWordPool, exec};
-use zkboo_slhdsa::{N, SLH_DSA_SHAKE_128F, SLH_DSA_SHAKE_128S, SlhDsaParams};
+use zkboo_slhdsa::{
+    N, SLH_DSA_SHA2_128F, SLH_DSA_SHA2_128S, SLH_DSA_SHAKE_128F, SLH_DSA_SHAKE_128S, SlhDsaParams,
+};
 
 type WP = OwnedFlexibleWordPool<usize>;
 
@@ -22,6 +24,8 @@ fn params_for(parameter_set: &str) -> &'static SlhDsaParams {
     return match parameter_set {
         "SLH-DSA-SHAKE-128s" => &SLH_DSA_SHAKE_128S,
         "SLH-DSA-SHAKE-128f" => &SLH_DSA_SHAKE_128F,
+        "SLH-DSA-SHA2-128s" => &SLH_DSA_SHA2_128S,
+        "SLH-DSA-SHA2-128f" => &SLH_DSA_SHA2_128F,
         _ => panic!("unsupported parameter set {parameter_set}"),
     };
 }
@@ -47,11 +51,24 @@ fn cases(fixture: &str, parameter_set: &str) -> Vec<Value> {
         .collect();
 }
 
+fn keygen_fixture(parameter_set: &str) -> &'static str {
+    return if parameter_set.contains("SHA2") {
+        include_str!("vectors/acvp_keygen_sha2_128.json")
+    } else {
+        include_str!("vectors/acvp_keygen_shake128.json")
+    };
+}
+
+fn sigver_fixture(parameter_set: &str) -> &'static str {
+    return if parameter_set.contains("SHA2") {
+        include_str!("vectors/acvp_sigver_sha2_128.json")
+    } else {
+        include_str!("vectors/acvp_sigver_shake128.json")
+    };
+}
+
 fn run_keygen_cases(parameter_set: &str) {
-    let cases = cases(
-        include_str!("vectors/acvp_keygen_shake128.json"),
-        parameter_set,
-    );
+    let cases = cases(keygen_fixture(parameter_set), parameter_set);
     assert!(!cases.is_empty(), "no keyGen cases for {parameter_set}");
     for case in cases {
         let tc_id = &case["tcId"];
@@ -70,10 +87,7 @@ fn run_keygen_cases(parameter_set: &str) {
 
 fn run_sigver_cases(parameter_set: &str) {
     let params = params_for(parameter_set);
-    let cases = cases(
-        include_str!("vectors/acvp_sigver_shake128.json"),
-        parameter_set,
-    );
+    let cases = cases(sigver_fixture(parameter_set), parameter_set);
     assert!(!cases.is_empty(), "no sigVer cases for {parameter_set}");
     for case in cases {
         let tc_id = &case["tcId"];
@@ -135,4 +149,25 @@ fn test_acvp_sigver_128s() {
 #[test]
 fn test_acvp_sigver_128f() {
     run_sigver_cases("SLH-DSA-SHAKE-128f");
+}
+
+#[test]
+fn test_acvp_keygen_sha2_128f() {
+    run_keygen_cases("SLH-DSA-SHA2-128f");
+}
+
+#[test]
+#[ignore = "builds ten 512-leaf XMSS trees in-circuit; run explicitly in release mode"]
+fn test_acvp_keygen_sha2_128s() {
+    run_keygen_cases("SLH-DSA-SHA2-128s");
+}
+
+#[test]
+fn test_acvp_sigver_sha2_128s() {
+    run_sigver_cases("SLH-DSA-SHA2-128s");
+}
+
+#[test]
+fn test_acvp_sigver_sha2_128f() {
+    run_sigver_cases("SLH-DSA-SHA2-128f");
 }

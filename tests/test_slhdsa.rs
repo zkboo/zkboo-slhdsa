@@ -12,14 +12,18 @@ mod common;
 
 use common::{KeygenCircuit, VerifyCircuit};
 use rand::{SeedableRng, rngs::StdRng};
-use slh_dsa::{ParameterSet, Shake128f, Shake128s, SigningKey, signature::Signer};
+use slh_dsa::{
+    ParameterSet, Sha2_128f, Sha2_128s, Shake128f, Shake128s, SigningKey, signature::Signer,
+};
 use zkboo::{
     crypto::{HashPRG, Keccak256Hasher},
     executor::{OwnedFlexibleWordPool, exec},
     prover::{prove, views::OwnedFlexibleWordTriplePool},
     verifier::{replay::OwnedFlexibleWordPairPool, verify},
 };
-use zkboo_slhdsa::{N, SLH_DSA_SHAKE_128F, SLH_DSA_SHAKE_128S, SlhDsaParams};
+use zkboo_slhdsa::{
+    N, SLH_DSA_SHA2_128F, SLH_DSA_SHA2_128S, SLH_DSA_SHAKE_128F, SLH_DSA_SHAKE_128S, SlhDsaParams,
+};
 
 type WP = OwnedFlexibleWordPool<usize>;
 
@@ -119,6 +123,27 @@ fn test_verify_128s_zkboo_proof() {
     let is_valid = verify::<_, H, PV, S, WPP>(&circuit, &expected_output, &proof, &[])
         .expect("proof verification errored");
     assert!(is_valid, "ZKBoo proof of SLH-DSA verification is invalid");
+}
+
+#[test]
+fn test_keygen_sha2_128f() {
+    check_keygen::<Sha2_128f>(&SLH_DSA_SHA2_128F);
+}
+
+#[test]
+#[ignore = "builds a 512-leaf XMSS tree in-circuit; run explicitly in release mode"]
+fn test_keygen_sha2_128s() {
+    check_keygen::<Sha2_128s>(&SLH_DSA_SHA2_128S);
+}
+
+#[test]
+fn test_verify_sha2_128s() {
+    check_verify::<Sha2_128s>(&SLH_DSA_SHA2_128S);
+}
+
+#[test]
+fn test_verify_sha2_128f() {
+    check_verify::<Sha2_128f>(&SLH_DSA_SHA2_128F);
 }
 
 #[test]
