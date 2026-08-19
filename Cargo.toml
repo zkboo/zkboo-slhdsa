@@ -1,0 +1,16 @@
+[package]
+name = "zkboo-slhdsa"
+version = "0.1.0"
+edition = "2024"
+license = "LGPL-3.0-or-later"
+description = "SLH-DSA (SPHINCS+, FIPS 205) key generation and verification as ZKBoo circuits."
+repository = "https://github.com/hashberg-io/zkboo-slhdsa"
+
+[dependencies]
+zkboo = { version = "0.1.0", features = ["u16", "u32", "u64"] }
+zkboo-keccak = { version = "0.1.0" }
+
+[dev-dependencies]
+zkboo = { version = "0.1.0", features = ["u16", "u32", "u64"] }
+slh-dsa = "0.1.0"
+rand = "0.8"
