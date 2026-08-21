@@ -36,9 +36,11 @@ Approximate circuit sizes, in in-circuit SHAKE256 calls: verification ~4.3k (128
 Validated end-to-end against the reference [`slh-dsa`](https://crates.io/crates/slh-dsa) (RustCrypto) implementation and against the official NIST ACVP FIPS 205 gen/val vectors (`tests/vectors/`, see its README for provenance): all keyGen cases and all sigVer cases of the internal and pure-external interfaces pass, for all four parameter sets, including adversarial cases (modified `R`/`SIG_FORS`/`SIG_HT`, modified messages, wrong-length signatures). A full ZKBoo prove/verify round-trip passes over the 128s verification circuit.
 Heavy tests (the 128s key-generation cases and the proof round-trip) are `#[ignore]`d; run them explicitly in release mode.
 
-## 🚧 Warning 🚧
+## ⚠️ Unaudited ⚠️
 
-Work in progress, not yet suitable for production. Security has not been audited.
+The public API is stable as of 1.0.0, but this implementation has not undergone an external
+security review.
+Use at your own risk.
 
 ## License
 
