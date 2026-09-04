@@ -16,7 +16,9 @@ zkboo-keccak = { version = "1.0.0" }
 zkboo-sha2 = { version = "1.0.0", features = ["sha256"] }
 
 [dev-dependencies]
-zkboo = { version = "1.0.0", features = ["u16", "u32", "u64", "keccak"] }
+zkboo = { version = "1.0.0", features = ["u16", "u32", "u64"] }
+blake3 = "1.8.3"
+zeroize = "1.8.2"
 slh-dsa = "0.1.0"
 # slh-dsa 0.1.0 does not compile against later `signature` prereleases, so pin the exact one.
 signature = "=2.3.0-pre.4"

@@ -16,7 +16,7 @@ use slh_dsa::{
     ParameterSet, Sha2_128f, Sha2_128s, Shake128f, Shake128s, SigningKey, signature::Signer,
 };
 use zkboo::{
-    crypto::{HashPRG, Keccak256Hasher},
+    crypto::{HashPRG, Hasher},
     executor::{OwnedFlexibleWordPool, exec},
     prover::{prove, views::OwnedFlexibleWordTriplePool},
     verifier::{replay::OwnedFlexibleWordPairPool, verify},
@@ -27,6 +27,40 @@ use zkboo_slhdsa::{
 use zkboo::executor::ExecOptions;
 use zkboo::prover::proof::ProofOptions;
 use zkboo::verifier::VerifyOptions;
+use zeroize::Zeroize;
+
+/// A [Hasher] backed by BLAKE3, producing 32-byte digests.
+#[derive(Debug)]
+struct Blake3Hasher {
+    inner: blake3::Hasher,
+}
+
+impl Hasher for Blake3Hasher {
+    type Digest = [u8; 32];
+    const DIGEST_SIZE: usize = 32;
+
+    fn new() -> Self {
+        return Self {
+            inner: blake3::Hasher::new(),
+        };
+    }
+
+    fn update(&mut self, data: &[u8]) {
+        self.inner.update(data);
+    }
+
+    fn finalize_into(&mut self, out: &mut Self::Digest) {
+        let result = self.inner.finalize();
+        out.copy_from_slice(result.as_bytes());
+        self.inner.reset();
+    }
+}
+
+impl Zeroize for Blake3Hasher {
+    fn zeroize(&mut self) {
+        self.inner.reset();
+    }
+}
 
 type WP = OwnedFlexibleWordPool<usize>;
 
@@ -106,7 +140,7 @@ fn test_verify_128f() {
 #[test]
 #[ignore = "proves and verifies a full 128s verification circuit; run explicitly in release mode"]
 fn test_verify_128s_zkboo_proof() {
-    type H = Keccak256Hasher;
+    type H = Blake3Hasher;
     type PS = HashPRG<H>;
     type PV = HashPRG<H>;
     type S = [u8; 32];
