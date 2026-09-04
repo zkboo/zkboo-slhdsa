@@ -24,6 +24,9 @@ use zkboo::{
 use zkboo_slhdsa::{
     N, SLH_DSA_SHA2_128F, SLH_DSA_SHA2_128S, SLH_DSA_SHAKE_128F, SLH_DSA_SHAKE_128S, SlhDsaParams,
 };
+use zkboo::executor::ExecOptions;
+use zkboo::prover::proof::ProofOptions;
+use zkboo::verifier::VerifyOptions;
 
 type WP = OwnedFlexibleWordPool<usize>;
 
@@ -56,11 +59,11 @@ fn reference<P: ParameterSet>() -> Reference {
 
 fn check_keygen<P: ParameterSet>(params: &'static SlhDsaParams) {
     let reference = reference::<P>();
-    let out = exec::<_, WP>(&KeygenCircuit {
+    let out = exec::<_, WP, _>(&KeygenCircuit {
         sk_seed: reference.sk_seed,
         pk_seed: reference.pk_seed,
         params,
-    })
+    }, ExecOptions::new())
     .u8;
     assert_eq!(out, reference.pk_root.to_vec());
 }
@@ -68,13 +71,13 @@ fn check_keygen<P: ParameterSet>(params: &'static SlhDsaParams) {
 fn check_verify<P: ParameterSet>(params: &'static SlhDsaParams) {
     let reference = reference::<P>();
     assert_eq!(reference.sig.len(), params.sig_len());
-    let out = exec::<_, WP>(&VerifyCircuit {
+    let out = exec::<_, WP, _>(&VerifyCircuit {
         msg: internal_msg(),
         sig: reference.sig,
         pk_seed: reference.pk_seed,
         pk_root: reference.pk_root,
         params,
-    })
+    }, ExecOptions::new())
     .u8;
     assert_eq!(out, reference.pk_root.to_vec());
 }
@@ -117,10 +120,10 @@ fn test_verify_128s_zkboo_proof() {
         pk_root: reference.pk_root,
         params: &SLH_DSA_SHAKE_128S,
     };
-    let expected_output = exec::<_, WP>(&circuit);
+    let expected_output = exec::<_, WP, _>(&circuit, ExecOptions::new());
     assert_eq!(expected_output.u8, reference.pk_root.to_vec());
-    let proof = prove::<_, H, PS, PV, S, WTP>(&circuit, 2, b"test seed entropy", &[]);
-    let is_valid = verify::<_, H, PV, S, WPP>(&circuit, &expected_output, &proof, &[])
+    let proof = prove::<_, H, PS, PV, S, _, WTP, _>(&circuit, 2, b"test seed entropy", &[], ProofOptions::new());
+    let is_valid = verify::<_, H, PV, S, WPP, _>(&circuit, &expected_output, &proof, &[], VerifyOptions::new())
         .expect("proof verification errored");
     assert!(is_valid, "ZKBoo proof of SLH-DSA verification is invalid");
 }
@@ -151,13 +154,13 @@ fn test_verify_128s_rejects_tampered_signature() {
     let reference = reference::<Shake128s>();
     let mut sig = reference.sig;
     sig[N] ^= 0x01;
-    let out = exec::<_, WP>(&VerifyCircuit {
+    let out = exec::<_, WP, _>(&VerifyCircuit {
         msg: internal_msg(),
         sig,
         pk_seed: reference.pk_seed,
         pk_root: reference.pk_root,
         params: &SLH_DSA_SHAKE_128S,
-    })
+    }, ExecOptions::new())
     .u8;
     assert_ne!(out, reference.pk_root.to_vec());
 }
@@ -165,13 +168,13 @@ fn test_verify_128s_rejects_tampered_signature() {
 #[test]
 fn test_verify_128s_rejects_wrong_message() {
     let reference = reference::<Shake128s>();
-    let out = exec::<_, WP>(&VerifyCircuit {
+    let out = exec::<_, WP, _>(&VerifyCircuit {
         msg: [&[0u8, 0u8], b"a different message".as_slice()].concat(),
         sig: reference.sig,
         pk_seed: reference.pk_seed,
         pk_root: reference.pk_root,
         params: &SLH_DSA_SHAKE_128S,
-    })
+    }, ExecOptions::new())
     .u8;
     assert_ne!(out, reference.pk_root.to_vec());
 }
