@@ -1,6 +1,6 @@
 [package]
 name = "zkboo-slhdsa"
-version = "1.0.0"
+version = "1.2.0"
 edition = "2024"
 license = "LGPL-3.0-or-later"
 description = "SLH-DSA (SPHINCS+, FIPS 205) key generation and verification as ZKBoo circuits."
@@ -11,12 +11,12 @@ keywords = ["zk", "zero-knowledge", "zkboo", "slh-dsa", "sphincs"]
 categories = ["cryptography", "no-std"]
 
 [dependencies]
-zkboo = { version = "1.0.0", features = ["u16", "u32", "u64"] }
-zkboo-keccak = { version = "1.0.0" }
-zkboo-sha2 = { version = "1.0.0", features = ["sha256"] }
+zkboo = { version = "1.2.0", features = ["u16", "u32", "u64"] }
+zkboo-keccak = { version = "1.2.0" }
+zkboo-sha2 = { version = "1.2.0", features = ["sha256"] }
 
 [dev-dependencies]
-zkboo = { version = "1.0.0", features = ["u16", "u32", "u64"] }
+zkboo = { version = "1.2.0", features = ["u16", "u32", "u64"] }
 blake3 = "1.8.3"
 zeroize = "1.8.2"
 slh-dsa = "0.1.0"
