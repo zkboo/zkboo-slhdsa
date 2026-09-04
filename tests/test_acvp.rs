@@ -17,6 +17,7 @@ use zkboo::executor::{OwnedFlexibleWordPool, exec};
 use zkboo_slhdsa::{
     N, SLH_DSA_SHA2_128F, SLH_DSA_SHA2_128S, SLH_DSA_SHAKE_128F, SLH_DSA_SHAKE_128S, SlhDsaParams,
 };
+use zkboo::executor::ExecOptions;
 
 type WP = OwnedFlexibleWordPool<usize>;
 
@@ -75,11 +76,11 @@ fn run_keygen_cases(parameter_set: &str) {
         let sk_seed: [u8; N] = hex_field(&case, "skSeed").try_into().unwrap();
         let pk_seed: [u8; N] = hex_field(&case, "pkSeed").try_into().unwrap();
         let pk = hex_field(&case, "pk");
-        let out = exec::<_, WP>(&KeygenCircuit {
+        let out = exec::<_, WP, _>(&KeygenCircuit {
             sk_seed,
             pk_seed,
             params: params_for(parameter_set),
-        })
+        }, ExecOptions::new())
         .u8;
         assert_eq!(out, pk[N..2 * N].to_vec(), "keyGen tcId {tc_id}");
     }
@@ -114,13 +115,13 @@ fn run_sigver_cases(parameter_set: &str) {
             continue;
         }
         let pk_root: [u8; N] = pk[N..2 * N].try_into().unwrap();
-        let out = exec::<_, WP>(&VerifyCircuit {
+        let out = exec::<_, WP, _>(&VerifyCircuit {
             msg: internal_msg,
             sig,
             pk_seed: pk[..N].try_into().unwrap(),
             pk_root,
             params,
-        })
+        }, ExecOptions::new())
         .u8;
         assert_eq!(
             out == pk_root.to_vec(),
